@@ -481,18 +481,24 @@ Client::shutdownConnection()
             if (mMessageEndpoint)
                 mMessageEndpoint->shutdown();
             mPeer->shutdown();
-            delete mMessageEndpoint;
-            delete mOutgoingQueue;
-            mMessageEndpoint = nullptr;
-            mOutgoingQueue = nullptr;
-            delete mPeerEndpoint;
-            mPeerEndpoint = nullptr;
         } catch (PeerException& /*e*/) {
             // its getting deleted in any case so nothing to do here
         }
 
+        // Join the message delivery and send threads *before* deleting the
+        // endpoints and queue they use: the shutdown() calls above make them
+        // exit, but until they have, deleting these is a use-after-free
+        // (seen as a crash in Envelope::deserialize on the delivery thread
+        // when a client disconnects while frames are still arriving).
         if (mThread.joinable()) mThread.join();
         if (mSendThread.joinable()) mSendThread.join();
+
+        delete mMessageEndpoint;
+        delete mOutgoingQueue;
+        mMessageEndpoint = nullptr;
+        mOutgoingQueue = nullptr;
+        delete mPeerEndpoint;
+        mPeerEndpoint = nullptr;
         if (mIsLocal) shutdownLocal();
         mPeer.reset();
         mConnectionError = false;
