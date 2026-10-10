@@ -498,8 +498,11 @@ void LocalSession::connectProc()
     network::Peer** peers = &peer;
     int count = 1;        
     listenPeer.accept(peers,count,CONNECT_TIMEOUT_MS);
-    // Connected (or timed out): the socket file is not needed any more.
+    // Connected (or timed out): execComp read its config file before connecting,
+    // and the socket file is not needed for the open connection. Remove both now -
+    // the destructor is not reached when the client process just exits.
     unlink(mIpcAddress.c_str());
+    unlink(mExecConfigFilePath.c_str());
     {
 	std::unique_lock<std::mutex> lock(mConnectMutex);
 	mPeer.reset(peer);
