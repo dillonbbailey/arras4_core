@@ -89,6 +89,13 @@ LocalSession::~LocalSession()
     }
     if (mConnectThread.joinable())
 	mConnectThread.join();
+
+    // The computation's config file and IPC socket are only needed to start and
+    // connect it; they used to be left in /tmp, two files per session.
+    if (!mIpcAddress.empty())
+        unlink(mIpcAddress.c_str());
+    if (!mExecConfigFilePath.empty())
+        unlink(mExecConfigFilePath.c_str());
 }
 
 // get an object by key from JSON config data. Returns an empty object if the
@@ -491,6 +498,8 @@ void LocalSession::connectProc()
     network::Peer** peers = &peer;
     int count = 1;        
     listenPeer.accept(peers,count,CONNECT_TIMEOUT_MS);
+    // Connected (or timed out): the socket file is not needed any more.
+    unlink(mIpcAddress.c_str());
     {
 	std::unique_lock<std::mutex> lock(mConnectMutex);
 	mPeer.reset(peer);

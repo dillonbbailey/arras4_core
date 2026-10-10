@@ -1,6 +1,7 @@
 // Copyright 2023-2024 DreamWorks Animation LLC and Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
+#include <cstddef>
 #include "network_platform.h"
 
 #ifdef PLATFORM_WINDOWS
@@ -113,7 +114,9 @@ IPCSocketPeer::listen(const std::string& aIPCName, int aMaxPendingConnections)
     addr.sun_family = AF_UNIX;
     // the name size was checked to fit in UNIX_PATH_MAX above
     strcpy(addr.sun_path, aIPCName.c_str());
-    size_t len = sizeof(addr.sun_family) + strlen(addr.sun_path);
+    // offsetof, not sizeof(sun_family): macOS's sockaddr_un starts with a sun_len byte,
+    // so the old length dropped the name's last character (".ipc" became ".ip").
+    size_t len = offsetof(struct sockaddr_un, sun_path) + strlen(addr.sun_path);
 
     if (::bind(mSocket, reinterpret_cast<struct sockaddr*>(&addr), (socklen_t)len) < 0) {
         // save errno before doing anything else
@@ -183,7 +186,9 @@ IPCSocketPeer::connect(const std::string& aIPCName)
     addr.sun_family = AF_UNIX;
     // the name size was checked to fit in UNIX_PATH_MAX above
     strcpy(addr.sun_path, aIPCName.c_str());
-    size_t len = sizeof(addr.sun_family) + strlen(addr.sun_path);
+    // offsetof, not sizeof(sun_family): macOS's sockaddr_un starts with a sun_len byte,
+    // so the old length dropped the name's last character (".ipc" became ".ip").
+    size_t len = offsetof(struct sockaddr_un, sun_path) + strlen(addr.sun_path);
 
     if (::connect(mSocket, (const sockaddr*)&addr, (socklen_t)len) < 0) {
         // save errno before doing anything else

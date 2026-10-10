@@ -41,7 +41,10 @@
 #endif
 
 #ifdef PLATFORM_APPLE
-    #define UNIX_PATH_MAX 1024
+    // The real size of sockaddr_un::sun_path (104). The IPC name checks rely on it:
+    // 1024 let longer names overflow sun_path in strcpy.
+    #include <sys/un.h>
+    #define UNIX_PATH_MAX (sizeof(((struct sockaddr_un*)nullptr)->sun_path))
 #endif
 
 #endif
